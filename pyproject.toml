@@ -59,10 +59,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/veritas"
-Documentation = "https://github.com/yourusername/veritas#readme"
-Repository = "https://github.com/yourusername/veritas"
-Issues = "https://github.com/yourusername/veritas/issues"
+Homepage = "https://github.com/clawson1717/veritas"
+Documentation = "https://github.com/clawson1717/veritas#readme"
+Repository = "https://github.com/clawson1717/veritas"
+Issues = "https://github.com/clawson1717/veritas/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["veritas"]
