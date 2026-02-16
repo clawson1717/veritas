@@ -26,6 +26,18 @@ from veritas.allocation.catts import (
     AllocationStrategy,
     BudgetManager,
 )
+from veritas.verification.checklist import (
+    ChecklistVerifier,
+    ChecklistItem,
+    ChecklistResult,
+    CheckStatus,
+    create_retrieval_checklist,
+    create_synthesis_checklist,
+    create_search_checklist,
+    create_research_quality_checklist,
+    get_checklist,
+    list_checklists,
+)
 
 __all__ = [
     "ResearchAgent",
@@ -41,4 +53,14 @@ __all__ = [
     "AllocationDecision",
     "AllocationStrategy",
     "BudgetManager",
+    "ChecklistVerifier",
+    "ChecklistItem",
+    "ChecklistResult",
+    "CheckStatus",
+    "create_retrieval_checklist",
+    "create_synthesis_checklist",
+    "create_search_checklist",
+    "create_research_quality_checklist",
+    "get_checklist",
+    "list_checklists",
 ]
