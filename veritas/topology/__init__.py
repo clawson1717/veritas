@@ -1,21 +1,27 @@
 """Dynamic topology module implementing DyTopo routing."""
 
 from veritas.topology.router import (
-    DynamicRouter,
     TopologyRouter,
+    DynamicRouter,
     AgentRegistry,
-    TaskNeeds,
     AgentOffer,
+    TaskNeeds,
+    AgentCapability,
     AgentNode,
+    Complexity,
+    Domain,
     create_router,
 )
 
 __all__ = [
-    "DynamicRouter",
     "TopologyRouter",
+    "DynamicRouter",
     "AgentRegistry",
+    "AgentOffer",
     "TaskNeeds",
-    "AgentOffer", 
+    "AgentCapability",
     "AgentNode",
+    "Complexity",
+    "Domain",
     "create_router",
 ]

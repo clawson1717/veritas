@@ -4,10 +4,8 @@ Reconstructs agent communication graphs each round via semantic
 matching of agent "needs" and "offers".
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Optional, List, Dict, Set
 from enum import Enum
 
 
@@ -66,7 +64,7 @@ class AgentCapability:
     name: str
     description: str
     type: str  # "offer" or "need"
-    embedding: list[float] | None = None
+    embedding: Optional[List[float]] = None
 
 
 @dataclass  
@@ -104,7 +102,7 @@ class AgentRegistry:
             if agent.agent_id not in self._capability_index[cap_lower]:
                 self._capability_index[cap_lower].append(agent.agent_id)
     
-    def get_agent(self, agent_id: str) -> AgentOffer | None:
+    def get_agent(self, agent_id: str) -> Optional[AgentOffer]:
         """Get an agent by ID.
         
         Args:
@@ -164,7 +162,7 @@ class TopologyRouter:
     def __init__(
         self,
         similarity_threshold: float = 0.5,
-        embedding_fn: Callable[[str], list[float]] | None = None,
+        embedding_fn: Optional[Callable[[str], List[float]]] = None,
     ):
         self.similarity_threshold = similarity_threshold
         self._embedding_fn = embedding_fn
@@ -449,6 +447,25 @@ class TopologyRouter:
         if not self._graph:
             self.rebuild_topology()
         return self._graph
+
+
+def create_router(
+    similarity_threshold: float = 0.5,
+    embedding_fn: Optional[Callable[[str], List[float]]] = None,
+) -> TopologyRouter:
+    """Factory function to create a configured TopologyRouter.
+    
+    Args:
+        similarity_threshold: Minimum similarity for matching
+        embedding_fn: Optional function for semantic embeddings
+        
+    Returns:
+        Configured TopologyRouter instance
+    """
+    return TopologyRouter(
+        similarity_threshold=similarity_threshold,
+        embedding_fn=embedding_fn,
+    )
 
 
 # Backwards compatibility alias
