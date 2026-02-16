@@ -42,7 +42,16 @@ from veritas.refinement.igrpo import (
     SelfFeedbackRefiner,
     RefinementResult,
     ConvergenceChecker,
-    create_refiner,
+    ConvergenceConfig,
+    SimilarityMetric,
+    refine_response,
+)
+from veritas.topology.router import (
+    TopologyRouter,
+    AgentRegistry,
+    TaskNeeds,
+    AgentOffer,
+    create_router,
 )
 
 __all__ = [
@@ -72,5 +81,12 @@ __all__ = [
     "SelfFeedbackRefiner",
     "RefinementResult",
     "ConvergenceChecker",
-    "create_refiner",
+    "ConvergenceConfig",
+    "SimilarityMetric",
+    "refine_response",
+    "TopologyRouter",
+    "AgentRegistry",
+    "TaskNeeds",
+    "AgentOffer",
+    "create_router",
 ]
