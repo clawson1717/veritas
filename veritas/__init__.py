@@ -38,6 +38,12 @@ from veritas.verification.checklist import (
     get_checklist,
     list_checklists,
 )
+from veritas.refinement.igrpo import (
+    SelfFeedbackRefiner,
+    RefinementResult,
+    ConvergenceChecker,
+    create_refiner,
+)
 
 __all__ = [
     "ResearchAgent",
@@ -63,4 +69,8 @@ __all__ = [
     "create_research_quality_checklist",
     "get_checklist",
     "list_checklists",
+    "SelfFeedbackRefiner",
+    "RefinementResult",
+    "ConvergenceChecker",
+    "create_refiner",
 ]
