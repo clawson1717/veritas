@@ -1,7 +1,7 @@
 """Tests for Veritas core modules."""
 
 import pytest
-from veritas.core.agent import ResearchAgent, ResearchQuery
+from veritas.core.agent import ResearchAgent, ResearchTask
 
 
 class TestResearchAgent:
@@ -10,35 +10,38 @@ class TestResearchAgent:
     def test_agent_initialization(self):
         """Test agent can be initialized."""
         agent = ResearchAgent()
-        assert agent.max_compute_budget == 1000
-        assert agent.verification_threshold == 0.8
+        assert agent.model == "gpt-4o-mini"
+        assert agent.max_iterations == 3
+        assert agent.enable_verification is True
     
     def test_agent_custom_config(self):
         """Test agent with custom configuration."""
         agent = ResearchAgent(
-            max_compute_budget=500,
-            verification_threshold=0.9,
+            model="gpt-4o",
+            max_iterations=5,
+            enable_verification=False,
         )
-        assert agent.max_compute_budget == 500
-        assert agent.verification_threshold == 0.9
+        assert agent.model == "gpt-4o"
+        assert agent.max_iterations == 5
+        assert agent.enable_verification is False
 
 
-class TestResearchQuery:
-    """Test suite for ResearchQuery."""
+class TestResearchTask:
+    """Test suite for ResearchTask."""
     
-    def test_query_defaults(self):
-        """Test query default values."""
-        query = ResearchQuery(question="Test question")
-        assert query.question == "Test question"
-        assert query.depth == 3
-        assert query.max_steps == 10
+    def test_task_defaults(self):
+        """Test task default values."""
+        task = ResearchTask(query="Test question")
+        assert task.query == "Test question"
+        assert task.depth == "medium"
+        assert task.max_steps == 10
     
-    def test_query_custom_values(self):
-        """Test query with custom values."""
-        query = ResearchQuery(
-            question="Test",
-            depth=5,
+    def test_task_custom_values(self):
+        """Test task with custom values."""
+        task = ResearchTask(
+            query="Test",
+            depth="deep",
             max_steps=20,
         )
-        assert query.depth == 5
-        assert query.max_steps == 20
+        assert task.depth == "deep"
+        assert task.max_steps == 20

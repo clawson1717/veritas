@@ -1,172 +1,402 @@
 """Command-line interface for Veritas."""
 
 import argparse
-import asyncio
 import json
 import sys
-from typing import Optional
+from pathlib import Path
+from typing import Any, Optional
 
-from veritas.core.integrator import create_full_integrator, create_minimal_integrator
-from veritas.allocation.catts import CATTSAllocator
-from veritas.verification.checklist import get_checklist
-from veritas.topology.router import create_router
+from rich.console import Console
+from rich.panel import Panel
+from rich.pretty import pprint
+
+from veritas import (
+    ResearchAgent,
+    ResearchTask,
+    ChecklistVerifier,
+    get_checklist,
+    list_checklists,
+    CATTSAllocator,
+    AllocationConfig,
+    TopologyRouter,
+    create_router,
+)
+
+console = Console()
 
 
-def create_parser() -> argparse.ArgumentParser:
-    """Create the CLI argument parser."""
+def setup_parser() -> argparse.ArgumentParser:
+    """Set up the argument parser with all commands and options."""
     parser = argparse.ArgumentParser(
         prog="veritas",
-        description="Veritas - Adaptive research agent with verification"
+        description="Veritas - An adaptive web research agent with step-by-step verification",
     )
     
+    # Global options
+    parser.add_argument(
+        "--config", "-c",
+        type=Path,
+        help="Path to configuration file (JSON or YAML)"
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose output"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        type=Path,
+        help="Output file for results"
+    )
+    
+    # Create subparsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Research command
-    research_parser = subparsers.add_parser("research", help="Run research query")
-    research_parser.add_argument("query", help="Research question")
-    research_parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
-    research_parser.add_argument("--format", "-f", choices=["json", "text"], default="text", help="Output format")
+    research_parser = subparsers.add_parser(
+        "research",
+        help="Run a research task"
+    )
+    research_parser.add_argument(
+        "--query", "-q",
+        required=True,
+        help="Research query"
+    )
+    research_parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=5,
+        help="Maximum research iterations"
+    )
     
     # Verify command
-    verify_parser = subparsers.add_parser("verify", help="Verify an answer")
-    verify_parser.add_argument("answer", help="Answer to verify")
-    verify_parser.add_argument("--checklist", "-c", default="synthesis", help="Checklist to use")
-    verify_parser.add_argument("--format", "-f", choices=["json", "text"], default="text", help="Output format")
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Verify content against a checklist"
+    )
+    verify_parser.add_argument(
+        "--content", "-C",
+        required=True,
+        help="Content to verify"
+    )
+    verify_parser.add_argument(
+        "--checklist", "-l",
+        default="research_quality",
+        help="Checklist name to use"
+    )
     
     # Allocate command
-    allocate_parser = subparsers.add_parser("allocate", help="Allocate compute budget")
-    allocate_parser.add_argument("votes", nargs="+", help="Vote distribution (e.g., A B A)")
-    allocate_parser.add_argument("--step-type", "-s", default="action_selection", help="Step type")
+    allocate_parser = subparsers.add_parser(
+        "allocate",
+        help="Allocate compute budget based on uncertainty"
+    )
+    allocate_parser.add_argument(
+        "--uncertainty", "-u",
+        type=float,
+        required=True,
+        help="Uncertainty score (0-1)"
+    )
+    allocate_parser.add_argument(
+        "--budget", "-b",
+        type=float,
+        default=100.0,
+        help="Total budget available"
+    )
     
     # Route command
-    route_parser = subparsers.add_parser("route", help="Route a query")
-    route_parser.add_argument("query", help="Query to route")
-    route_parser.add_argument("--sources", "-s", nargs="+", default=["web", "database"], help="Available sources")
+    route_parser = subparsers.add_parser(
+        "route",
+        help="Route task to appropriate agents"
+    )
+    route_parser.add_argument(
+        "--task", "-t",
+        required=True,
+        help="Task description"
+    )
+    route_parser.add_argument(
+        "--agents", "-a",
+        help="Comma-separated list of available agents"
+    )
     
     return parser
 
 
-async def run_research(args) -> int:
-    """Run a research query."""
-    integrator = create_full_integrator() if args.verbose else create_minimal_integrator()
+def load_config(config_path: Optional[Path]) -> dict[str, Any]:
+    """Load configuration from file."""
+    if config_path is None:
+        return {}
     
-    result = await integrator.run(
-        query=args.query,
-        context={"sources": ["web"]},
-        initial_response=f"Research on: {args.query}"
-    )
+    if not config_path.exists():
+        console.print(f"[red]Error: Config file not found: {config_path}[/red]")
+        sys.exit(1)
     
-    if args.format == "json":
-        print(json.dumps({
-            "success": result.success,
-            "answer": result.answer,
+    with open(config_path) as f:
+        if config_path.suffix in (".yaml", ".yml"):
+            import yaml
+            return yaml.safe_load(f) or {}
+        else:
+            return json.load(f)
+
+
+def run_research(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    """Run a research task."""
+    if args.verbose:
+        console.print(f"[cyan]Running research for: {args.query}[/cyan]")
+        console.print(f"[cyan]Max iterations: {args.max_iterations}[/cyan]")
+    
+    try:
+        # Create research task
+        task = ResearchTask(
+            query=args.query,
+            max_iterations=args.max_iterations
+        )
+        
+        # Create and run agent
+        agent = ResearchAgent(config=config)
+        result = agent.run(task)
+        
+        output_data = {
+            "query": result.task.query,
+            "answer": result.final_answer,
+            "iterations": result.iterations,
             "confidence": result.confidence,
-            "steps": result.steps_executed,
-            "error": result.error
-        }, indent=2))
-    else:
-        print(f"Query: {args.query}")
-        print(f"Success: {result.success}")
-        print(f"Answer: {result.answer}")
-        print(f"Confidence: {result.confidence:.2f}")
-        print(f"Steps: {', '.join(result.steps_executed)}")
-        if result.error:
-            print(f"Error: {result.error}")
-    
-    return 0 if result.success else 1
+        }
+        
+        if args.verbose:
+            console.print(Panel(
+                f"[bold]Query:[/bold] {result.task.query}\n\n"
+                f"[bold]Answer:[/bold] {result.final_answer}\n\n"
+                f"[bold]Iterations:[/bold] {result.iterations}\n"
+                f"[bold]Confidence:[/bold] {result.confidence:.2f}",
+                title="Research Result"
+            ))
+        else:
+            console.print(result.final_answer)
+        
+        # Write output if specified
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"[green]Results written to {args.output}[/green]")
+            
+    except Exception as e:
+        console.print(f"[red]Error during research: {e}[/red]")
+        if args.verbose:
+            raise
+        sys.exit(1)
 
 
-def run_verify(args) -> int:
-    """Verify an answer."""
-    verifier = get_checklist(args.checklist)
-    result = verifier.verify(args.answer)
+def run_verify(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    """Verify content against a checklist."""
+    if args.verbose:
+        console.print(f"[cyan]Verifying content against: {args.checklist}[/cyan]")
     
-    if args.format == "json":
-        print(json.dumps({
+    try:
+        # Get the checklist
+        checklist = get_checklist(args.checklist)
+        
+        # Create verifier
+        verifier = ChecklistVerifier(config=config)
+        
+        # Run verification
+        result = verifier.verify(args.content, checklist)
+        
+        output_data = {
+            "checklist": args.checklist,
+            "content_length": len(args.content),
             "passed": result.passed,
             "score": result.score,
-            "items": [{"criterion": i.criterion, "status": i.status.value} for i in result.items]
-        }, indent=2))
-    else:
-        print(f"Checklist: {args.checklist}")
-        print(f"Passed: {result.passed}")
-        print(f"Score: {result.score:.2f}")
-        print("\nItems:")
-        for item in result.items:
-            status = "✓" if item.status.value == "passed" else "✗"
-            print(f"  {status} {item.criterion}: {item.status.value}")
-    
-    return 0 if result.passed else 1
+            "results": [
+                {
+                    "item": item.item,
+                    "status": item.status.value,
+                    "reason": item.reason
+                }
+                for item in result.items
+            ]
+        }
+        
+        if args.verbose:
+            status_color = "green" if result.passed else "red"
+            console.print(Panel(
+                f"[bold]Checklist:[/bold] {args.checklist}\n"
+                f"[bold]Score:[/bold] {result.score:.1%}\n"
+                f"[bold]Status:[/bold] [{status_color}]{'PASSED' if result.passed else 'FAILED'}[/{status_color}]",
+                title="Verification Result"
+            ))
+            console.print("\n[bold]Items:[/bold]")
+            for item in result.items:
+                status_icon = "✓" if item.status.value == "passed" else "✗" if item.status.value == "failed" else "○"
+                status_color = "green" if item.status.value == "passed" else "red" if item.status.value == "failed" else "yellow"
+                console.print(f"  {status_icon} [{status_color}]{item.item}[/{status_color}]: {item.reason}")
+        else:
+            console.print(f"Verification: {'PASSED' if result.passed else 'FAILED'} ({result.score:.1%})")
+        
+        # Write output if specified
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"[green]Results written to {args.output}[/green]")
+            
+    except Exception as e:
+        console.print(f"[red]Error during verification: {e}[/red]")
+        if args.verbose:
+            raise
+        sys.exit(1)
 
 
-def run_allocate(args) -> int:
-    """Allocate compute budget."""
-    allocator = CATTSAllocator()
-    decision = allocator.allocate(args.votes, step_type=args.step_type)
+def run_allocate(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    """Allocate compute budget based on uncertainty."""
+    if args.verbose:
+        console.print(f"[cyan]Calculating allocation for uncertainty: {args.uncertainty}[/cyan]")
+        console.print(f"[cyan]Budget: {args.budget}[/cyan]")
     
-    print(f"Votes: {' '.join(args.votes)}")
-    print(f"Step type: {args.step_type}")
-    print(f"\nAllocation decision:")
-    print(f"  Samples: {decision.samples}")
-    print(f"  Token budget: {decision.token_budget}")
-    print(f"  Uncertainty: {decision.uncertainty:.2f}")
-    print(f"  Confidence: {decision.confidence:.2f}")
-    print(f"  Should continue: {decision.should_continue}")
-    print(f"  Reasoning: {decision.reasoning}")
-    
-    return 0
+    try:
+        # Create allocator
+        alloc_config = AllocationConfig(
+            initial_budget=args.budget,
+            min_budget_fraction=0.1,
+            max_budget_fraction=1.0,
+        )
+        allocator = CATTSAllocator(alloc_config)
+        
+        # Calculate allocation
+        decision = allocator.allocate(args.uncertainty)
+        
+        output_data = {
+            "uncertainty": args.uncertainty,
+            "budget": args.budget,
+            "allocated": decision.allocated_budget,
+            "strategy": decision.strategy.value,
+            "reasoning": decision.reasoning
+        }
+        
+        if args.verbose:
+            console.print(Panel(
+                f"[bold]Uncertainty:[/bold] {args.uncertainty:.2f}\n"
+                f"[bold]Budget:[/bold] ${args.budget:.2f}\n"
+                f"[bold]Allocated:[/bold] ${decision.allocated_budget:.2f}\n"
+                f"[bold]Strategy:[/bold] {decision.strategy.value}\n\n"
+                f"[bold]Reasoning:[/bold] {decision.reasoning}",
+                title="Allocation Decision"
+            ))
+        else:
+            console.print(f"Allocated: ${decision.allocated_budget:.2f} ({decision.strategy.value})")
+        
+        # Write output if specified
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"[green]Results written to {args.output}[/green]")
+            
+    except Exception as e:
+        console.print(f"[red]Error during allocation: {e}[/red]")
+        if args.verbose:
+            raise
+        sys.exit(1)
 
 
-def run_route(args) -> int:
-    """Route a query."""
-    router = create_router()
+def run_route(args: argparse.Namespace, config: dict[str, Any]) -> None:
+    """Route task to appropriate agents."""
+    if args.verbose:
+        console.print(f"[cyan]Routing task: {args.task}[/cyan]")
     
-    # Simple routing based on keywords
-    from veritas.topology.router import TaskNeeds, Complexity, Domain
-    
-    query_lower = args.query.lower()
-    domain = Domain.RESEARCH
-    if "verify" in query_lower or "check" in query_lower:
-        domain = Domain.VERIFICATION
-    
-    task_needs = TaskNeeds(
-        description=args.query,
-        required_capabilities=["information_gathering"],
-        complexity=Complexity.MEDIUM,
-        domain=domain
-    )
-    
-    agents = router.route(task_needs)
-    
-    print(f"Query: {args.query}")
-    print(f"Available sources: {', '.join(args.sources)}")
-    print(f"\nRouted agents: {len(agents)}")
-    for agent in agents:
-        print(f"  - {agent.name}: {agent.offer[:50]}...")
-    
-    return 0
+    try:
+        # Create router
+        router = create_router(config)
+        
+        # Parse available agents
+        available_agents = args.agents.split(",") if args.agents else None
+        
+        # Route the task
+        result = router.route(args.task, available_agents)
+        
+        output_data = {
+            "task": args.task,
+            "recommended_agent": result.recommended_agent,
+            "reasoning": result.reasoning,
+            "scores": result.agent_scores
+        }
+        
+        if args.verbose:
+            console.print(Panel(
+                f"[bold]Task:[/bold] {args.task}\n\n"
+                f"[bold]Recommended:[/bold] {result.recommended_agent}\n\n"
+                f"[bold]Reasoning:[/bold] {result.reasoning}",
+                title="Routing Decision"
+            ))
+            if result.agent_scores:
+                console.print("\n[bold]Agent Scores:[/bold]")
+                for agent, score in result.agent_scores.items():
+                    console.print(f"  {agent}: {score:.2f}")
+        else:
+            console.print(f"Routed to: {result.recommended_agent}")
+        
+        # Write output if specified
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"[green]Results written to {args.output}[/green]")
+            
+    except Exception as e:
+        console.print(f"[red]Error during routing: {e}[/red]")
+        if args.verbose:
+            raise
+        sys.exit(1)
 
 
-def main() -> int:
-    """Main entry point."""
-    parser = create_parser()
-    args = parser.parse_args()
+def list_available_checklists() -> None:
+    """List all available checklists."""
+    checklists = list_checklists()
+    console.print("[bold]Available Checklists:[/bold]")
+    for name, description in checklists.items():
+        console.print(f"  • {name}: {description}")
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """Main entry point for the CLI."""
+    parser = setup_parser()
+    args = parser.parse_args(argv)
     
-    if not args.command:
+    # Load config
+    config = load_config(args.config)
+    
+    # Handle no command
+    if args.command is None:
         parser.print_help()
+        console.print("\n[bold]Available Commands:[/bold]")
+        console.print("  research  - Run a research task")
+        console.print("  verify    - Verify content against a checklist")
+        console.print("  allocate  - Allocate compute budget based on uncertainty")
+        console.print("  route     - Route task to appropriate agents")
+        
+        # Show available checklists
+        console.print("\n[bold]Tip:[/bold] Use 'veritas verify --list-checklists' to see available checklists")
+        return 0
+    
+    # Execute command
+    try:
+        if args.command == "research":
+            run_research(args, config)
+        elif args.command == "verify":
+            run_verify(args, config)
+        elif args.command == "allocate":
+            run_allocate(args, config)
+        elif args.command == "route":
+            run_route(args, config)
+        else:
+            console.print(f"[red]Unknown command: {args.command}[/red]")
+            return 1
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted by user[/yellow]")
+        return 130
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        if args.verbose:
+            raise
         return 1
     
-    if args.command == "research":
-        return asyncio.run(run_research(args))
-    elif args.command == "verify":
-        return run_verify(args)
-    elif args.command == "allocate":
-        return run_allocate(args)
-    elif args.command == "route":
-        return run_route(args)
-    else:
-        parser.print_help()
-        return 1
+    return 0
 
 
 if __name__ == "__main__":

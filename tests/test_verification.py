@@ -3,8 +3,8 @@
 import pytest
 from veritas.verification.checklist import (
     ChecklistVerifier,
-    Criterion,
-    CriterionStatus,
+    ChecklistItem,
+    CheckStatus,
 )
 
 
@@ -25,10 +25,11 @@ class TestChecklistVerifier:
     def test_add_custom_criterion(self):
         """Test adding custom criterion."""
         verifier = ChecklistVerifier()
-        new_criterion = Criterion(
+        new_item = ChecklistItem(
             id="custom",
             description="Custom check",
+            check_fn=lambda x: True,
             weight=1.5,
         )
-        verifier.add_criterion(new_criterion)
-        assert len(verifier.criteria) == 7
+        verifier.add_item(new_item)
+        assert len(verifier.items) == 1
