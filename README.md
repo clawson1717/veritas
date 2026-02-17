@@ -11,8 +11,11 @@ Veritas is an intelligent research agent that combines cutting-edge techniques f
 - **🔄 Iterative Refinement**: Self-feedback-driven answer improvement (iGRPO)
 - **🌐 Smart Routing**: Semantic query routing to optimal information sources (DyTopo)
 - **🤖 Browser Automation**: Full Playwright integration for real web interaction
+- **⚡ CLI Interface**: Command-line tool for all operations
 
 ## 🚀 Quick Start
+
+### Python API
 
 ```python
 import asyncio
@@ -36,6 +39,22 @@ async def main():
 asyncio.run(main())
 ```
 
+### CLI Usage
+
+```bash
+# Run research query
+python -m veritas research --query "What is quantum computing?"
+
+# Verify an answer
+python -m veritas verify --content "The answer is 42"
+
+# Allocate compute budget
+python -m veritas allocate --uncertainty 0.7
+
+# Route a query
+python -m veritas route --task "Find information about AI"
+```
+
 ## 🏗️ Architecture
 
 Veritas implements five key research insights:
@@ -48,13 +67,22 @@ Veritas implements five key research insights:
 | **LawThinker-style** | LawThinker | Verify after every retrieval step |
 | **DyTopo Router** | Dynamic Topology | Semantic query-to-capability matching |
 
+### Core Modules
+
+- `veritas/core/agent.py` - Main ResearchAgent class
+- `veritas/core/integrator.py` - AgentIntegrator combining all components
+- `veritas/allocation/catts.py` - CATTS dynamic compute allocation
+- `veritas/verification/checklist.py` - CM2 checklist verification
+- `veritas/refinement/igrpo.py` - iGRPO self-feedback refinement
+- `veritas/topology/router.py` - DyTopo semantic routing
+
 ## 📦 Installation
 
 ```bash
 pip install veritas
 
 # Or from source
-git clone https://github.com/yourusername/veritas
+git clone https://github.com/clawson1717/veritas
 cd veritas
 pip install -e .
 ```
@@ -70,6 +98,8 @@ pytest tests/
 
 # Run examples
 python examples/basic_research.py
+python examples/catts_demo.py
+python examples/integrated_pipeline.py
 ```
 
 ## 📝 Example Usage
@@ -79,6 +109,8 @@ See the `examples/` directory for complete examples:
 - `basic_research.py` - Simple research query
 - `verified_research.py` - Research with detailed verification
 - `adaptive_compute.py` - Demonstrates CATTS allocation
+- `cats_demo.py` - CATTS compute allocation demo
+- `integrated_pipeline.py` - Full integrator pipeline demo
 
 ## 📄 License
 
