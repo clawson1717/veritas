@@ -53,6 +53,14 @@ from veritas.topology.router import (
     AgentOffer,
     create_router,
 )
+from veritas.core.integrator import (
+    AgentIntegrator,
+    IntegrationConfig,
+    IntegrationResult,
+    create_integrator,
+    create_minimal_integrator,
+    create_full_integrator,
+)
 
 __all__ = [
     "ResearchAgent",
@@ -89,4 +97,10 @@ __all__ = [
     "TaskNeeds",
     "AgentOffer",
     "create_router",
+    "AgentIntegrator",
+    "IntegrationConfig",
+    "IntegrationResult",
+    "create_integrator",
+    "create_minimal_integrator",
+    "create_full_integrator",
 ]

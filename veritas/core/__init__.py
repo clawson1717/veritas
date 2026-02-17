@@ -8,6 +8,14 @@ from veritas.core.uncertainty import (
     normalize_uncertainty,
     uncertainty_to_confidence,
 )
+from veritas.core.integrator import (
+    AgentIntegrator,
+    IntegrationConfig,
+    IntegrationResult,
+    create_integrator,
+    create_minimal_integrator,
+    create_full_integrator,
+)
 
 __all__ = [
     "ResearchAgent",
@@ -18,4 +26,10 @@ __all__ = [
     "VoteSampler",
     "normalize_uncertainty",
     "uncertainty_to_confidence",
+    "AgentIntegrator",
+    "IntegrationConfig",
+    "IntegrationResult",
+    "create_integrator",
+    "create_minimal_integrator",
+    "create_full_integrator",
 ]
